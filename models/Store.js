@@ -82,10 +82,59 @@ storeSchema.statics.getTagsList = function() {
 	]);
 }
 
+storeSchema.statics.getTopStores = function() {
+	return this.aggregate([
+		// Lookup Stores and populate thier reviews
+		{
+			$lookup: {
+				from: 'reviews', localField: '_id',  foreignField: 'store', as: 'reviews'
+			}
+		},
+		// Filter for only items that have 2 or more  reviews
+		{
+			$match: {
+				'reviews.1' : {
+					$exists: true
+				}
+			}
+		},
+		// Add the average reviews field
+		{
+			$project: {
+				photo: '$$ROOT.photo',
+				name: '$$ROOT.name',
+				reviews: '$$ROOT.reviews',
+				slug: '$$ROOT.slug',
+				averageRating: {
+					$avg: '$reviews.rating'
+				}
+			}
+		},
+		// Sort it by our new field, highest reviews first
+		{
+			$sort: {
+				averageRating: -1
+			}
+		},
+		// Limit to at most 10
+		{
+			$limit: 10
+		}
+	]);
+}
+
 storeSchema.virtual('reviews', {
 	ref: 'Review', // what model to link
 	localField: '_id', // which field on the store
 	foreignField: 'store' // which field on the review
 });
+
+function autopopulate(next) {
+	this.populate('reviews');
+	next();
+}
+
+storeSchema.pre('find', autopopulate);
+storeSchema.pre('findOne', autopopulate);
 
 module.exports = mongoose.model('Store', storeSchema);

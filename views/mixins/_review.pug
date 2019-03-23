@@ -1,4 +1,5 @@
 mixin review(review)
+	pre= h.dump(review)
 	.review__header
 		.review__author
 			img.avatar(src=review.author.gravatar)
